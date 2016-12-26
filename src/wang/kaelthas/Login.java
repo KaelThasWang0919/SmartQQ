@@ -1,7 +1,9 @@
 package wang.kaelthas;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -9,6 +11,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -22,20 +28,16 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.cookie.Cookie;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
-import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import wang.kaelthas.bean.BarcodeStateBean;
 
 public class Login {
-	private static String qqNum = "850459198";
 	private static Header[] headers = null;
 	private static Header header = null;
 	private static String ptwebqq = "";
@@ -60,22 +62,24 @@ public class Login {
 			getVfwebqq();
 		}
 		if(getPsessionidAndUin())
-		do {
-			getMessage();
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		} while (true);
+			getFriendList(uin, ptwebqq, vfwebqq);
+//		do {
+//			getMessage();
+//			try {
+//				Thread.sleep(500);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		} while (true);
 
 	}
 
 	// step1:获取二维码
 	public static void getImage() {
 		String url = "https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=0.1";
-		String image = "/Users/server/Desktop/123/test1.png";
+		String root=System.getProperty("user.dir")+"\\";
+		String imagePath = root+"test1.png";
 
 		HttpGet httpGet = new HttpGet(url);
 		FileOutputStream fos = null;
@@ -91,12 +95,12 @@ public class Login {
 			}
 
 			inputStream = response.getEntity().getContent();
-			File file = new File("/Users/server/Desktop/");
-			if (!file.exists()) {
-				file.mkdirs();
-			}
+//			File file = new File("/Users/server/Desktop/");
+//			if (!file.exists()) {
+//				file.mkdirs();
+//			}
 
-			fos = new FileOutputStream(image);
+			fos = new FileOutputStream(imagePath);
 			byte[] data = new byte[1024];
 			int len = 0;
 			while ((len = inputStream.read(data)) != -1) {
@@ -310,12 +314,78 @@ public class Login {
 		}
 	}
 	
+	
+	//获取好友列表
+	public static void getFriendList(String uin,String ptWebqq,String vfWebqq) {
+		String hash=getHash(uin, ptWebqq);
+		String url="http://s.web2.qq.com/api/get_user_friends2";
+		String referer="http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1";
+	
+		HttpPost post = new HttpPost(url);
+		post.addHeader("Referer", referer);
+		String parem = "{\"vfwebqq\":\"" + vfWebqq + "\",\"hash\":\""+hash+"\"}";
+		List<NameValuePair> params = new ArrayList<NameValuePair>();
+		params.add(new BasicNameValuePair("r", parem));
+		try {
+			post.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
+		} catch (UnsupportedEncodingException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		try {
+			HttpResponse response = httpClient.execute(post, context);
+			HttpEntity entity = response.getEntity();
+			String entityArr= EntityUtils.toString(entity);
+			JSONObject jsonObject=new JSONObject(entityArr);
+			if("0".equals(jsonObject.getString("retcode"))){
+				JSONObject result=jsonObject.getJSONObject("result");
+				JSONArray friendJson=result.getJSONArray("friends");
+				JSONArray marknamesJson=result.getJSONArray("marknames");
+				JSONArray categoriesJson=result.getJSONArray("categories");
+				JSONArray infoJson=result.getJSONArray("info");
+				
+				System.out.println("-------------"+friendJson.length()+"\n"+marknamesJson.length()+"\n"+categoriesJson.length()+"\n"+infoJson.length());
+
+				
+			}
+
+		} catch (Exception e) {
+			System.out.println("getFriendList出错,\n错误信息:" + e.toString());
+
+		}
+	}
+	
+	
+	
 	public static String getCurrentTime(){
 		String currentTime="";
 		Date now = new Date(); 
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");//可以方便地修改日期格式
 		currentTime = dateFormat.format( now ); 
 		return currentTime;
+	}
+	
+	
+	public static String getHash(String uin,String ptWebqq) {
+		String result="";
+		ScriptEngineManager manager = new ScriptEngineManager();
+		ScriptEngine en = manager.getEngineByName("javascript");
+		try {
+			en.eval(new FileReader(new File("hash.js")));
+			Object t = en.eval("u("+uin+",\""+ptWebqq+"\")");
+			result=t.toString();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ScriptException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		return result;
+		
 	}
 
 }
