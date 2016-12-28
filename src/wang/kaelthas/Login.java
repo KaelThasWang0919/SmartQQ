@@ -36,6 +36,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import wang.kaelthas.bean.BarcodeStateBean;
+import wang.kaelthas.bean.Friend;
 
 public class Login {
 	private static Header[] headers = null;
@@ -50,6 +51,7 @@ public class Login {
 	public static HttpClientContext context = null;
 	public static CookieStore cookieStore = null;
 	public static RequestConfig requestConfig = null;
+	public static List<Friend> friends = new ArrayList<>();
 
 	public static void main(String[] args) {
 		httpClient = HttpClients.createDefault();
@@ -61,25 +63,34 @@ public class Login {
 		if (result) {
 			getVfwebqq();
 		}
-		if(getPsessionidAndUin())
-			getFriendList(uin, ptwebqq, vfwebqq);
-//		do {
-//			getMessage();
-//			try {
-//				Thread.sleep(500);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//		} while (true);
+		if (getPsessionidAndUin()) {
+			// getFriendList(uin, ptwebqq, vfwebqq);
+			System.out.println("开始轮询消息");
+			// do {
+			// getMessage();
+			// try {
+			// Thread.sleep(500);
+			// } catch (InterruptedException e) {
+			// // TODO Auto-generated catch block
+			// e.printStackTrace();
+			// }
+			// } while (true);
+
+			getFriendList();
+
+			for (Friend friend : friends) {
+				if (friend.getNickName().equals("仲少"))
+					sendMessage(friend.getUin(), "测试下号不要");
+			}
+		}
 
 	}
 
 	// step1:获取二维码
 	public static void getImage() {
 		String url = "https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=0.1";
-		String root=System.getProperty("user.dir")+"\\";
-		String imagePath = root+"test1.png";
+		String root = System.getProperty("user.dir") + "\\";
+		String imagePath = root + "test1.png";
 
 		HttpGet httpGet = new HttpGet(url);
 		FileOutputStream fos = null;
@@ -95,10 +106,10 @@ public class Login {
 			}
 
 			inputStream = response.getEntity().getContent();
-//			File file = new File("/Users/server/Desktop/");
-//			if (!file.exists()) {
-//				file.mkdirs();
-//			}
+			// File file = new File("/Users/server/Desktop/");
+			// if (!file.exists()) {
+			// file.mkdirs();
+			// }
 
 			fos = new FileOutputStream(imagePath);
 			byte[] data = new byte[1024];
@@ -257,20 +268,20 @@ public class Login {
 			HttpResponse response = httpClient.execute(post, context);
 			HttpEntity entity = response.getEntity();
 			String result = EntityUtils.toString(entity);
-//			{
-//			    "result":{
-//			        "port":47450,
-//			        "f":0,
-//			        "index":1075,
-//			        "psessionid":"8368046764001d636f6e6e7365727665725f77656271714031302e3133332e34312e383400001ad00000066b026e040015808a206d0000000a406172314338344a69526d0000002859185d94e66218548d1ecb1a12513c86126b3afb97a3c2955b1070324790733ddb059ab166de6857",
-//			        "cip":23600812,
-//			        "uin":206479684,
-//			        "vfwebqq":"59185d94e66218548d1ecb1a12513c86126b3afb97a3c2955b1070324790733ddb059ab166de6857",
-//			        "status":"online",
-//			        "user_state":0
-//			    },
-//			    "retcode":0
-//			}
+			// {
+			// "result":{
+			// "port":47450,
+			// "f":0,
+			// "index":1075,
+			// "psessionid":"8368046764001d636f6e6e7365727665725f77656271714031302e3133332e34312e383400001ad00000066b026e040015808a206d0000000a406172314338344a69526d0000002859185d94e66218548d1ecb1a12513c86126b3afb97a3c2955b1070324790733ddb059ab166de6857",
+			// "cip":23600812,
+			// "uin":206479684,
+			// "vfwebqq":"59185d94e66218548d1ecb1a12513c86126b3afb97a3c2955b1070324790733ddb059ab166de6857",
+			// "status":"online",
+			// "user_state":0
+			// },
+			// "retcode":0
+			// }
 			JSONObject jsonObject = new JSONObject(result);
 			psessionid = jsonObject.getJSONObject("result").getString("psessionid");
 			uin = jsonObject.getJSONObject("result").getString("uin");
@@ -287,10 +298,13 @@ public class Login {
 	public static void getMessage() {
 		String url = "http://d1.web2.qq.com/channel/poll2";
 		HttpPost post = new HttpPost(url);
-		post.addHeader("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
-		// post.addHeader("Origin", "http://d1.web2.qq.com");
-		String parem = "{\"ptwebqq\":\"" + ptwebqq + "\",\"clientid\":53999199,\"psessionid\": \"" + psessionid+ "\",\"status\":\"online\"}";
-		// {"ptwebqq":"23bf0d377cbb05636a4c9bd1105afcbe2686946cf98bd0ab7b6e4501d2e97618","clientid":53999199,"psessionid":"","status":"online"}
+
+		// origin:https://d1.web2.qq.com
+		// referer:https://d1.web2.qq.com/cfproxy.html?v=20151105001&callback=1
+		post.addHeader("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1");
+		post.addHeader("Origin", "http://d1.web2.qq.com");
+		String parem = "{\"ptwebqq\":\"" + ptwebqq + "\",\"clientid\":53999199,\"psessionid\": \"" + psessionid
+				+ "\",\"key\":\"\"}";
 
 		// 设置参数
 		List<NameValuePair> params = new ArrayList<NameValuePair>();
@@ -313,17 +327,16 @@ public class Login {
 
 		}
 	}
-	
-	
-	//获取好友列表
-	public static void getFriendList(String uin,String ptWebqq,String vfWebqq) {
-		String hash=getHash(uin, ptWebqq);
-		String url="http://s.web2.qq.com/api/get_user_friends2";
-		String referer="http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1";
-	
+
+	// 获取好友列表
+	public static void getFriendList() {
+		String hash = getHash(uin, ptwebqq);
+		String url = "http://s.web2.qq.com/api/get_user_friends2";
+		String referer = "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1";
+
 		HttpPost post = new HttpPost(url);
 		post.addHeader("Referer", referer);
-		String parem = "{\"vfwebqq\":\"" + vfWebqq + "\",\"hash\":\""+hash+"\"}";
+		String parem = "{\"vfwebqq\":\"" + vfwebqq + "\",\"hash\":\"" + hash + "\"}";
 		List<NameValuePair> params = new ArrayList<NameValuePair>();
 		params.add(new BasicNameValuePair("r", parem));
 		try {
@@ -335,18 +348,24 @@ public class Login {
 		try {
 			HttpResponse response = httpClient.execute(post, context);
 			HttpEntity entity = response.getEntity();
-			String entityArr= EntityUtils.toString(entity);
-			JSONObject jsonObject=new JSONObject(entityArr);
-			if("0".equals(jsonObject.getString("retcode"))){
-				JSONObject result=jsonObject.getJSONObject("result");
-				JSONArray friendJson=result.getJSONArray("friends");
-				JSONArray marknamesJson=result.getJSONArray("marknames");
-				JSONArray categoriesJson=result.getJSONArray("categories");
-				JSONArray infoJson=result.getJSONArray("info");
-				
-				System.out.println("-------------"+friendJson.length()+"\n"+marknamesJson.length()+"\n"+categoriesJson.length()+"\n"+infoJson.length());
+			String entityArr = EntityUtils.toString(entity);
 
-				
+			System.out.println(entityArr);
+			JSONObject jsonObject = new JSONObject(entityArr);
+			if ("0".equals(jsonObject.getString("retcode"))) {
+				JSONObject result = jsonObject.getJSONObject("result");
+				// JSONArray friendJson=result.getJSONArray("friends");
+				// JSONArray categoriesJson=result.getJSONArray("categories");
+				// JSONArray infoJson=result.getJSONArray("info");
+
+				Friend friend = null;
+				JSONArray marknamesArr = result.getJSONArray("marknames");
+				for (int i = 0; i < marknamesArr.length(); i++) {
+					JSONObject markname = marknamesArr.getJSONObject(i);
+					friend = new Friend(markname.getString("markname"), markname.getString("uin"));
+					friends.add(friend);
+				}
+
 			}
 
 		} catch (Exception e) {
@@ -354,26 +373,57 @@ public class Login {
 
 		}
 	}
-	
-	
-	
-	public static String getCurrentTime(){
-		String currentTime="";
-		Date now = new Date(); 
-		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");//可以方便地修改日期格式
-		currentTime = dateFormat.format( now ); 
+
+	// 发送消息
+	public static void sendMessage(String uin, String msg) {
+
+		String url = "http://d1.web2.qq.com/channel/send_buddy_msg2";
+		String referer = "https://d1.web2.qq.com/cfproxy.html?v=20151105001&callback=1";
+		String origin = "https://d1.web2.qq.com";
+		HttpPost post = new HttpPost(url);
+		post.addHeader("referer", referer);
+		post.addHeader("origin", origin);
+		String parem = "{\"to\":" + uin + "," + "\"content\":\"[\\\"" + msg
+				+ "\\\",[\\\"font\\\",{\\\"name\\\":\\\"宋体\\\",\\\"size\\\":10,\\\"style\\\":[0,0,0],\\\"color\\\":\\\"000000\\\"}]]\","
+				+ "\"face\":579,\"clientid\":53999199,\"msg_id\":34420001,"
+				+ "\"psessionid\":\""+psessionid+"\"}";
+
+		List<NameValuePair> params = new ArrayList<NameValuePair>();
+		params.add(new BasicNameValuePair("r", parem));
+		try {
+			post.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
+		} catch (UnsupportedEncodingException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		try {
+			HttpResponse response = httpClient.execute(post, context);
+			HttpEntity entity = response.getEntity();
+			String entityArr = EntityUtils.toString(entity);
+			System.out.println(entityArr);
+
+		} catch (Exception e) {
+			System.out.println("sendMessage出错,\n错误信息:" + e.toString());
+
+		}
+	}
+
+	public static String getCurrentTime() {
+		String currentTime = "";
+		Date now = new Date();
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");// 可以方便地修改日期格式
+		currentTime = dateFormat.format(now);
 		return currentTime;
 	}
-	
-	
-	public static String getHash(String uin,String ptWebqq) {
-		String result="";
+
+	public static String getHash(String uin, String ptWebqq) {
+		String result = "";
 		ScriptEngineManager manager = new ScriptEngineManager();
 		ScriptEngine en = manager.getEngineByName("javascript");
 		try {
 			en.eval(new FileReader(new File("hash.js")));
-			Object t = en.eval("u("+uin+",\""+ptWebqq+"\")");
-			result=t.toString();
+			Object t = en.eval("u(" + uin + ",\"" + ptWebqq + "\")");
+			result = t.toString();
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -381,11 +431,9 @@ public class Login {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
-		
+
 		return result;
-		
+
 	}
 
 }
